@@ -27,6 +27,8 @@
 #include <filesystem>
 #include <list>
 #include <set>
+#include<thread>
+#include<chrono>
 
 #include "JobRecord.h"
 #include "dbHandler.h"
@@ -464,6 +466,7 @@ bool DBHandler::insertUnseenJob(const std::string& owner, int clusterId, int pro
     return true;
 }
 
+
 /**
  * Batch insert multiple JobRecords in a single transaction.
  */
@@ -488,13 +491,10 @@ bool DBHandler::batchInsertJobRecords(const std::vector<JobRecord>& jobs) {
     int jobId, jobListId;
 
     for (const auto& job : jobs) {
+
         std::tie(jobId, jobListId) = jobIdLookup(job.ClusterId, job.ProcId);
 
         if (jobId == -1) { 
-            printf("[WARNING] JobRecord was not preceded by Spawn ad, no matching JobId\n"
-                "Writing JobAd for ClusterId %d, ProcId %d\n", 
-                job.ClusterId, job.ProcId);
-
             bool insertSuccess = insertUnseenJob(job.Owner, job.ClusterId, job.ProcId, job.CompletionDate);
             if(!insertSuccess){
                 printf("JobAd for ClusterId %d, ProcId %d failed! Exiting ... \n", job.ClusterId, job.ProcId);

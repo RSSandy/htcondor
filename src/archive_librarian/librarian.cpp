@@ -64,7 +64,9 @@ bool Librarian::loadGCSQL() {
  * @return true if successful, false on failure
  */
 bool Librarian::readEpochRecords(std::vector<EpochRecord>& newEpochRecords, FileInfo& fileInfo) {
-    long newOffset = readEpochIncremental(epochHistoryFilePath_.c_str(), newEpochRecords, fileInfo);
+    
+    std::string fullPath = epochHistoryFileSet_.historyDirectoryPath + "/" + fileInfo.FileName;
+    long newOffset = readEpochIncremental(fullPath.c_str(), newEpochRecords, fileInfo);
     if (newOffset < 0) {
         fprintf(stderr, "[Librarian] Failed to read epoch records.\n");
         return false;
@@ -86,7 +88,9 @@ bool Librarian::readEpochRecords(std::vector<EpochRecord>& newEpochRecords, File
  * @return true if successful, false on failure
  */
 bool Librarian::readJobRecords(std::vector<JobRecord>& newJobRecords, FileInfo& fileInfo) {
-    long newOffset = readHistoryIncremental(historyFilePath_.c_str(), newJobRecords, fileInfo);
+
+    std::string fullPath = historyFileSet_.historyDirectoryPath + "/" + fileInfo.FileName;
+    long newOffset = readHistoryIncremental(fullPath.c_str(), newJobRecords, fileInfo);
     if (newOffset < 0) {
         fprintf(stderr, "[Librarian] Failed to read job records.\n");
         return false;
@@ -519,6 +523,7 @@ bool Librarian::cleanupDatabaseIfNeeded() {
 // ================================
 
 // move down into public utilities! but later
+// move down into public utilities! but later
 int Librarian::query(int argc, char* argv[]) {
     
     // Parse command line arguments using internal utilities
@@ -531,7 +536,18 @@ int Librarian::query(int argc, char* argv[]) {
         return 1;
     }
     
+    // Build query string for logging
+    std::string queryString = "myList -user " + options.username + " -clusterId " + std::to_string(options.clusterId);
+    if (options.flags.usage) queryString += " -usage";
+    if (options.flags.batch) queryString += " -batch";
+    if (options.flags.dag) queryString += " -dag";
+    if (options.flags.files) queryString += " -files";
+    if (options.flags.when) queryString += " -when";
+    if (options.flags.where) queryString += " -where";
+    if (options.flags.status) queryString += " -status";
+    
     // Execute the query using helper method
+    auto startTime = std::chrono::high_resolution_clock::now(); // Check whether offsets actually make this process faster
     auto result = executeQuery(options.username, options.clusterId, historyFileSet_.historyDirectoryPath);
     
     if (!result.success) {
@@ -542,6 +558,24 @@ int Librarian::query(int argc, char* argv[]) {
     if (result.jobs.empty()) {
         JobAnalysisUtils::printNoJobsFound(options.username, options.clusterId);
         return 0;
+    }
+
+    // End timing
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+
+    // Report timing to console
+    std::cout << "\n\nQuery execution took " << durationMs << " ms\n";
+    
+    // Write timing data to file
+    std::ofstream timingFile("librarian_query_times.txt", std::ios::app);
+    if (timingFile.is_open()) {
+        timingFile << queryString << "\n";
+        timingFile << durationMs << " ms\n";
+        timingFile << "\n\n";
+        timingFile.close();
+    } else {
+        printf("Warning: Could not write to librarian_query_times.txt\n");
     }
     
     // Format and display output using utilities

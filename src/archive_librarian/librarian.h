@@ -50,8 +50,8 @@ public:
 private:
 
     // CONFIGS - right now, not used anywhere
-    const size_t MAX_EPOCH_RECORDS_PER_UPDATE = 10000;  
-    const size_t MAX_JOB_RECORDS_PER_UPDATE = 10000;    
+    const size_t MAX_EPOCH_RECORDS_PER_UPDATE = 1000000;
+    const size_t MAX_JOB_RECORDS_PER_UPDATE = 1000000;    
 
 
     // Members
